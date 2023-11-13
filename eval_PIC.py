@@ -115,7 +115,7 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--N', default=4, type=int)
     parser.add_argument('--dataset', default='CLIC2020', type=str)
-    parser.add_argument('--data_root', default='/home/Shared/image_datasets', type=str)
+    parser.add_argument('--data_root', default='/home/ma/code/Reproduce-Text-Sketch/image_datasets', type=str)
     parser.add_argument('--loss', default='clip', type=str)
 
     args = parser.parse_args()

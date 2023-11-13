@@ -28,6 +28,7 @@ class CLIC(LightningDataModule):
         transform = transforms.Compose(
             [transforms.ToTensor()]
         )
+        print(root)
         self.train_dset = ImageFolder(root=self.root + '/train', transform=transform)
         self.val_dset = ImageFolder(root=self.root + '/valid', transform=transform)
         self.test_dset = ImageFolder(root=self.root + '/test', transform=transform)

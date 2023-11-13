@@ -1,3 +1,11 @@
+# 我的笔记
+
+## 0 准备
+下载数据集
+CLIC 2020
+
+放在对应的路径下
+
 # Text + Sketch Compression via Text-to-Image Models
 
 Implementation for [Text + Sketch: Image Compression at Ultra Low Rates](https://arxiv.org/abs/2307.01944). 
