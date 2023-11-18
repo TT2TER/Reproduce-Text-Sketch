@@ -132,7 +132,7 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--N', default=4, type=int)
     parser.add_argument('--dataset', default='CLIC2020', type=str)
-    parser.add_argument('--data_root', default='/home/Shared/image_datasets', type=str)
+    parser.add_argument('--data_root', default='/root/autodl-tmp/image_datasets', type=str)
     parser.add_argument('--loss', default='clip', type=str)
     parser.add_argument('--lam_sketch', default=1.0, type=str)
 
@@ -147,6 +147,7 @@ if __name__ == '__main__':
     model = StableDiffusionControlNetPipeline.from_pretrained(
         sd_model_id, controlnet=controlnet, torch_dtype=torch.float16, revision="fp16",
     )
+    print("here")
     model.scheduler = UniPCMultistepScheduler.from_config(model.scheduler.config)
     model.enable_xformers_memory_efficient_attention()
     model.enable_model_cpu_offload()
