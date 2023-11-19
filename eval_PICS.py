@@ -164,11 +164,13 @@ if __name__ == '__main__':
     # import json
     args_ntc = Namespace()
     args_ntc.model_name = 'Cheng2020AttentionFull'
+    # args_ntc.model_name ='mbt2018_mean_Vimeo90k'
     args_ntc.lmbda = args.lam_sketch
     args_ntc.dist_name_model = "ms_ssim"
     args_ntc.orig_channels = 1
     ntc_sketch = models_compressai.get_models(args_ntc)
     saved = torch.load(f'models_ntc/OneShot_{args_ntc.model_name}_CLIC_HED_{args_ntc.dist_name_model}_lmbda{args_ntc.lmbda}.pt')
+    # saved = torch.load(f'models_ntc/OneShot_{args_ntc.model_name}_{args_ntc.dist_name_model}_lmbda{args_ntc.lmbda}.pt')
     ntc_sketch.load_state_dict(saved)
     ntc_sketch.eval()
     ntc_sketch.update()
