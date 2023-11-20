@@ -49,6 +49,7 @@ def encode_rcc(model, clip, preprocess, ntc_sketch, im, N=5, i=0):
         seed: random seed used
     """
     print("start encode_rcc")
+#start of cannymap
     apply_canny = HEDdetector()
     canny_map = HWC3(apply_canny(im))
 
@@ -65,7 +66,11 @@ def encode_rcc(model, clip, preprocess, ntc_sketch, im, N=5, i=0):
     sketch_recon = Image.fromarray(sketch_recon)
     #查看sketch_recon
     # sketch_recon.save(f'recon_examples/PICS_clip_ntclam1.0/CLIC2020_sketch/{i}_sketch_recon_mayutest.png')
+#end of cannymap
+#start of colormap
+#TODO: 处理colormap，然后压缩解压缩
 
+#end of colormap
     # Optionally load saved captions
     # if i > 0:
     # with open(f'recon_examples/PICS_clip_ntclam1.0/CLIC2020_recon/{i}_caption.yaml', 'r') as file:
@@ -76,13 +81,13 @@ def encode_rcc(model, clip, preprocess, ntc_sketch, im, N=5, i=0):
     
     guidance_scale = 9
     num_inference_steps = 25
-
+    control_images=sketch_recon
     # n_batches = N // 8 + 1
     # images = []
     # for b in range(n_batches):
     images = model(
         f'{caption}, {prompt_pos}',
-        sketch_recon,#模型的输入图像，为模拟压缩解压缩后的sketch
+        control_images,#模型的输入图像，为模拟压缩解压缩后的sketch
         generator = [torch.Generator(device="cuda").manual_seed(i) for i in range(N)],
         num_images_per_prompt=N ,
         guidance_scale=guidance_scale,
@@ -153,7 +158,10 @@ if __name__ == '__main__':
     # Load ControlNet
     sd_model_id = "stabilityai/stable-diffusion-2-1-base"
     # controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-hed", torch_dtype=torch.float16)
-    controlnet = ControlNetModel.from_pretrained("thibaud/controlnet-sd21-hed-diffusers", torch_dtype=torch.float16)#controlnet的參數
+    controlnet_hed = ControlNetModel.from_pretrained("thibaud/controlnet-sd21-hed-diffusers", torch_dtype=torch.float16)#controlnet的參數
+    controlnet_color = ControlNetModel.from_pretrained("thibaud/controlnet-sd21-color-diffusers", torch_dtype=torch.float16)
+    # controlnet = [controlnet_hed, controlnet_color]
+    controlnet=controlnet_color
     #TODO:什么是controlnet
     model = StableDiffusionControlNetPipeline.from_pretrained(
         sd_model_id, controlnet=controlnet, torch_dtype=torch.float16, revision="fp16",
