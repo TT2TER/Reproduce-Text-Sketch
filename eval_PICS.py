@@ -21,6 +21,15 @@ import sys, zlib
 from argparse import ArgumentParser, Namespace
 # import lpips
 
+def get_cond_color(cond_image, mask_size=64):
+    #copy form https://github.com/jinxixiang/color_controlnet
+    #rectangular palette
+    H, W = cond_image.size
+    cond_image = cond_image.resize((W // mask_size, H // mask_size), Image.BICUBIC)
+    color = cond_image.resize((H, W), Image.NEAREST)
+    return color
+
+
 def get_loss(args):
     if args.loss == 'clip':
         args_clip = Namespace()
@@ -68,8 +77,15 @@ def encode_rcc(model, clip, preprocess, ntc_sketch, im, N=5, i=0):
     # sketch_recon.save(f'recon_examples/PICS_clip_ntclam1.0/CLIC2020_sketch/{i}_sketch_recon_mayutest.png')
 #end of cannymap
 #start of colormap
-#TODO: 处理colormap，然后压缩解压缩
-
+    #TODO: 处理colormap，然后压缩解压缩
+    color_map = get_cond_color(im)
+    with torch.no_grad():
+        color_dict = ntc_sketch.compress(color_map)#TODO:这里应该换一个压缩模型
+        #https://interdigitalinc.github.io/CompressAI/zoo.html
+        #搞清楚这个仓库里的压缩模型哪来的
+        print(color_dict)
+        #TODO:解压缩
+    color_recon = color_map
 #end of colormap
     # Optionally load saved captions
     # if i > 0:
@@ -81,7 +97,7 @@ def encode_rcc(model, clip, preprocess, ntc_sketch, im, N=5, i=0):
     
     guidance_scale = 9
     num_inference_steps = 25
-    control_images=sketch_recon
+    control_images=color_recon
     # n_batches = N // 8 + 1
     # images = []
     # for b in range(n_batches):
