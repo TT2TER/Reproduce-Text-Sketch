@@ -160,10 +160,10 @@ if __name__ == '__main__':
         im = resize_image(HWC3(x_im), 512)#將圖片resize為512*512
         
         # caption, idx = encode_rcc(model, clip, clip_preprocess, im, args.N)
-        caption, idx = encode_rcc(model, clip, clip_preprocess, im, args.N, i)
-        xhat = recon_rcc(model, caption, idx,  args.N)
+        caption, idx = encode_rcc(model, clip, clip_preprocess, im, args.N, i)#效果最好的prompt和效果最好的圖片的索引
+        xhat = recon_rcc(model, caption, idx,  args.N)#返回的是效果最好的图片
 
-        im_orig = Image.fromarray(im)
+        im_orig = Image.fromarray(im)#將numpy數組轉換為PIL圖片
         im_orig.save(f'{save_dir}/{i}_gt.png')#保存原圖
 
         # for j, im_recon in enumerate(xhat):
