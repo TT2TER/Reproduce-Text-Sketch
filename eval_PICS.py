@@ -26,12 +26,12 @@ def get_loss(args):
         args_clip = Namespace()
         args_clip.__dict__.update(prompt_inv.read_json("prompt_inversion/sample_config.json"))
         clip_model, _, clip_preprocess = open_clip.create_model_and_transforms(args_clip.clip_model, pretrained=args_clip.clip_pretrain, device='cuda:0')
-        return lambda x, xhat: 1 - prompt_inv.clip_cosine(x, xhat, clip_model, clip_preprocess, 'cuda:0')
+        return lambda x, xhat: 1 - prompt_inv.clip_cosine(x, xhat, clip_model, clip_preprocess, 'cuda:0')#計算兩個向量的余弦相似度
     else:
         sys.exit('Not a valid loss')
 
-prompt_pos = 'high quality'
-prompt_neg = 'disfigured, deformed, low quality, lowres, b&w, blurry, Photoshop, video game, bad art'
+prompt_pos = 'high quality, high resolution, Leica camera effect, Leica photography'
+prompt_neg = 'disfigured, deformed, low quality, lowres, b&w, blurry, Photoshop, video game, bad art, overexposure, color distortion'
 
 def encode_rcc(model, clip, preprocess, ntc_sketch, im, N=5, i=0):
     """
@@ -48,25 +48,31 @@ def encode_rcc(model, clip, preprocess, ntc_sketch, im, N=5, i=0):
         idx: index selected
         seed: random seed used
     """
+    print("start encode_rcc")
     apply_canny = HEDdetector()
     canny_map = HWC3(apply_canny(im))
 
     # compress sketch
     sketch = Image.fromarray(canny_map)
-    sketch = ntc_preprocess(sketch).unsqueeze(0)
+    #查看sketch
+    #sketch.save(f'recon_examples/PICS_clip_ntclam1.0/CLIC2020_sketch/{i}_sketch_mayutest.png')
+    sketch = ntc_preprocess(sketch).unsqueeze(0)#unsqueeze(0)表示在第0维增加一维
     with torch.no_grad():
-        sketch_dict = ntc_sketch.compress(sketch)
-        sketch_recon = ntc_sketch.decompress(sketch_dict['strings'], sketch_dict['shape'])['x_hat'][0]
-        sketch_recon = adjust_sharpness(sketch_recon, 2)
-        sketch_recon = HWC3((255*sketch_recon.permute(1,2,0)).numpy().astype(np.uint8))
-    
+        sketch_dict = ntc_sketch.compress(sketch)#压缩
+        sketch_recon = ntc_sketch.decompress(sketch_dict['strings'], sketch_dict['shape'])['x_hat'][0]#解压缩
+        sketch_recon = adjust_sharpness(sketch_recon, 2)#调整锐度
+        sketch_recon = HWC3((255*sketch_recon.permute(1,2,0)).numpy().astype(np.uint8))#处理后的图片
+    sketch_recon = Image.fromarray(sketch_recon)
+    #查看sketch_recon
+    # sketch_recon.save(f'recon_examples/PICS_clip_ntclam1.0/CLIC2020_sketch/{i}_sketch_recon_mayutest.png')
+
     # Optionally load saved captions
     # if i > 0:
-    with open(f'recon_examples/PICS_clip_ntclam1.0/CLIC2020_recon/{i}_caption.yaml', 'r') as file:
-        caption_dict = yaml.safe_load(file)
-    caption = caption_dict['caption']
+    # with open(f'recon_examples/PICS_clip_ntclam1.0/CLIC2020_recon/{i}_caption.yaml', 'r') as file:
+    #     caption_dict = yaml.safe_load(file)
+    # caption = caption_dict['caption']
     # else:
-    #     caption = prompt_inv.optimize_prompt(clip, preprocess, args_clip, 'cuda:0', target_images=[Image.fromarray(im)])
+    caption = prompt_inv.optimize_prompt(clip, preprocess, args_clip, 'cuda:0', target_images=[Image.fromarray(im)])#得到最优promt
     
     guidance_scale = 9
     num_inference_steps = 25
@@ -76,7 +82,7 @@ def encode_rcc(model, clip, preprocess, ntc_sketch, im, N=5, i=0):
     # for b in range(n_batches):
     images = model(
         f'{caption}, {prompt_pos}',
-        Image.fromarray(sketch_recon),
+        sketch_recon,#模型的输入图像，为模拟压缩解压缩后的sketch
         generator = [torch.Generator(device="cuda").manual_seed(i) for i in range(N)],
         num_images_per_prompt=N ,
         guidance_scale=guidance_scale,
@@ -97,8 +103,9 @@ def recon_rcc(model,  ntc_sketch, caption, sketch_dict, idx, N=5):
     Inputs:
 
     """
+    print("start recon_rcc")
     # decode sketch
-    with torch.no_grad():
+    with torch.no_grad():#解压缩草图
         sketch = ntc_sketch.decompress(sketch_dict['strings'], sketch_dict['shape'])['x_hat'][0]
         sketch = adjust_sharpness(sketch, 2)
     sketch = HWC3((255*sketch.permute(1,2,0)).numpy().astype(np.uint8))
@@ -122,6 +129,9 @@ def recon_rcc(model,  ntc_sketch, caption, sketch_dict, idx, N=5):
     return images[idx], sketch
 
 def ntc_preprocess(image):
+    #输入图像
+    #将图像转化为灰度，再转化为tensor
+    #返回图像
     transform = transforms.Compose(
             [transforms.Grayscale(), transforms.ToTensor()]
         )
@@ -134,7 +144,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', default='CLIC2020', type=str)
     parser.add_argument('--data_root', default='/root/autodl-tmp/image_datasets', type=str)
     parser.add_argument('--loss', default='clip', type=str)
-    parser.add_argument('--lam_sketch', default=1.0, type=str)
+    parser.add_argument('--lam_sketch', default=1.0, type=str)#ntc_sketch的參數
 
     args = parser.parse_args()
     # dm = Kodak(root='~/data/Kodak', batch_size=1)
@@ -143,14 +153,15 @@ if __name__ == '__main__':
     # Load ControlNet
     sd_model_id = "stabilityai/stable-diffusion-2-1-base"
     # controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-hed", torch_dtype=torch.float16)
-    controlnet = ControlNetModel.from_pretrained("thibaud/controlnet-sd21-hed-diffusers", torch_dtype=torch.float16)
+    controlnet = ControlNetModel.from_pretrained("thibaud/controlnet-sd21-hed-diffusers", torch_dtype=torch.float16)#controlnet的參數
+    #TODO:什么是controlnet
     model = StableDiffusionControlNetPipeline.from_pretrained(
         sd_model_id, controlnet=controlnet, torch_dtype=torch.float16, revision="fp16",
     )
-    print("here")
-    model.scheduler = UniPCMultistepScheduler.from_config(model.scheduler.config)
+ 
+    model.scheduler = UniPCMultistepScheduler.from_config(model.scheduler.config)#https://huggingface.co/docs/diffusers/api/schedulers/unipc
     model.enable_xformers_memory_efficient_attention()
-    model.enable_model_cpu_offload()
+    model.enable_model_cpu_offload()#Offloads all models to CPU using accelerate, reducing memory usage with a low impact on performance.
     
     # Load loss
     loss_func = get_loss(args)
@@ -160,7 +171,7 @@ if __name__ == '__main__':
     args_clip.__dict__.update(prompt_inv.read_json("prompt_inversion/sample_config.json"))
     clip, _, clip_preprocess = open_clip.create_model_and_transforms(args_clip.clip_model, pretrained=args_clip.clip_pretrain, device='cuda:0')
 
-    # from argparse import Namespace
+
     # import json
     args_ntc = Namespace()
     args_ntc.model_name = 'Cheng2020AttentionFull'
@@ -172,8 +183,8 @@ if __name__ == '__main__':
     saved = torch.load(f'models_ntc/OneShot_{args_ntc.model_name}_CLIC_HED_{args_ntc.dist_name_model}_lmbda{args_ntc.lmbda}.pt')
     # saved = torch.load(f'models_ntc/OneShot_{args_ntc.model_name}_{args_ntc.dist_name_model}_lmbda{args_ntc.lmbda}.pt')
     ntc_sketch.load_state_dict(saved)
-    ntc_sketch.eval()
-    ntc_sketch.update()
+    ntc_sketch.eval()#推理，评估模式
+    ntc_sketch.update()#更新模型
 
     # Make savedir
     save_dir = f'recon_examples/PICS_{args.loss}_ntclam{args_ntc.lmbda}/{args.dataset}_recon'
@@ -185,6 +196,7 @@ if __name__ == '__main__':
         # Resize to 512
         x = x[0]
         x_im = (255*x.permute(1,2,0)).numpy().astype(np.uint8)
+        #permute:将tensor的维度换位，permute(1,2,0)表示将tensor的第一维换到第三维，第二维换到第一维，第三维换到第二维
         im = resize_image(HWC3(x_im), 512)
         # im = HWC3(x_im)
         
