@@ -266,16 +266,16 @@ if __name__ == '__main__':
         # im_sketch_recon.save(f'{sketch_dir}/{i}_sketch_recon.png')
 
         # Compute rates
-        bpp_sketch = sum([len(bin(int.from_bytes(s, sys.byteorder))) for s_batch in sketch_dict['strings'] for s in s_batch]) / (im_orig.size[0]*im_orig.size[1])
-        bpp_caption = sys.getsizeof(zlib.compress(caption.encode()))*8 / (im_orig.size[0]*im_orig.size[1])
+        # bpp_sketch = sum([len(bin(int.from_bytes(s, sys.byteorder))) for s_batch in sketch_dict['strings'] for s in s_batch]) / (im_orig.size[0]*im_orig.size[1])
+        # bpp_caption = sys.getsizeof(zlib.compress(caption.encode()))*8 / (im_orig.size[0]*im_orig.size[1])
 
-        compressed = {'caption': caption,
-                      'prior_strings':sketch_dict['strings'][0][0],
-                      'hyper_strings':sketch_dict['strings'][1][0],
-                      'bpp_sketch' : bpp_sketch,
-                      'bpp_caption' : bpp_caption,
-                      'bpp_total' : bpp_sketch + bpp_caption + math.log2(args.N) / (im_orig.size[0]*im_orig.size[1])
-                      }
-        with open(f'{save_dir}/{i}_caption.yaml', 'w') as file:
-            yaml.dump(compressed, file)
+        # compressed = {'caption': caption,
+        #               'prior_strings':sketch_dict['strings'][0][0],
+        #               'hyper_strings':sketch_dict['strings'][1][0],
+        #               'bpp_sketch' : bpp_sketch,
+        #               'bpp_caption' : bpp_caption,
+        #               'bpp_total' : bpp_sketch + bpp_caption + math.log2(args.N) / (im_orig.size[0]*im_orig.size[1])
+        #               }
+        # with open(f'{save_dir}/{i}_caption.yaml', 'w') as file:
+        #     yaml.dump(compressed, file)
             # file.write(caption)

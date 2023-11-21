@@ -22,11 +22,16 @@ from argparse import ArgumentParser, Namespace
 # import lpips
 
 def get_cond_color(cond_image, mask_size=64):
-    #copy form https://github.com/jinxixiang/color_controlnet
+    #improved form https://github.com/jinxixiang/color_controlnet
     #rectangular palette
+    cond_image = to_pil_image(cond_image)
+    print('在get_cond_color后的cond_image')
+    print(cond_image)
+    print(cond_image.size)
+    
     H, W = cond_image.size
-    cond_image = cond_image.resize((W // mask_size, H // mask_size), Image.BICUBIC)
-    color = cond_image.resize((H, W), Image.NEAREST)
+    cond_image = cond_image.resize((W // mask_size, H // mask_size), Image.Resampling.BICUBIC)
+    color = cond_image.resize((H, W), Image.Resampling.NEAREST)
     return color
 
 
@@ -64,8 +69,6 @@ def encode_rcc(model, clip, preprocess, ntc_sketch, im, N=5, i=0):
 
     # compress sketch
     sketch = Image.fromarray(canny_map)
-    #查看sketch
-    #sketch.save(f'recon_examples/PICS_clip_ntclam1.0/CLIC2020_sketch/{i}_sketch_mayutest.png')
     sketch = ntc_preprocess(sketch).unsqueeze(0)#unsqueeze(0)表示在第0维增加一维
     with torch.no_grad():
         sketch_dict = ntc_sketch.compress(sketch)#压缩
@@ -80,14 +83,16 @@ def encode_rcc(model, clip, preprocess, ntc_sketch, im, N=5, i=0):
     #TODO: 处理colormap，然后压缩解压缩
     color_map = get_cond_color(im)
     with torch.no_grad():
-        color_dict = ntc_sketch.compress(color_map)#TODO:这里应该换一个压缩模型
+        pass
+        #color_dict = ntc_sketch.compress(color_map)#TODO:这里应该换一个压缩模型
         #https://interdigitalinc.github.io/CompressAI/zoo.html
         #搞清楚这个仓库里的压缩模型哪来的
         #看起来好像是自己训练来的
-        print(color_dict)
+        #print(color_dict)
         #TODO:解压缩
     color_recon = color_map
 #end of colormap
+
     # Optionally load saved captions
     # if i > 0:
     # with open(f'recon_examples/PICS_clip_ntclam1.0/CLIC2020_recon/{i}_caption.yaml', 'r') as file:
@@ -116,7 +121,8 @@ def encode_rcc(model, clip, preprocess, ntc_sketch, im, N=5, i=0):
     loss = loss_func([Image.fromarray(im)]*N, images).squeeze()
     idx = torch.argmin(loss)
     
-    return caption, sketch, sketch_dict, idx
+    # return caption, sketch, sketch_dict, idx
+    return caption, color_map , None, idx
 
 def recon_rcc(model,  ntc_sketch, caption, sketch_dict, idx, N=5):
     """
@@ -126,19 +132,20 @@ def recon_rcc(model,  ntc_sketch, caption, sketch_dict, idx, N=5):
 
     """
     print("start recon_rcc")
-    # decode sketch
-    with torch.no_grad():#解压缩草图
-        sketch = ntc_sketch.decompress(sketch_dict['strings'], sketch_dict['shape'])['x_hat'][0]
-        sketch = adjust_sharpness(sketch, 2)
-    sketch = HWC3((255*sketch.permute(1,2,0)).numpy().astype(np.uint8))
-
+    # # decode sketch
+    # with torch.no_grad():#解压缩草图
+    #     sketch = ntc_sketch.decompress(sketch_dict['strings'], sketch_dict['shape'])['x_hat'][0]
+    #     sketch = adjust_sharpness(sketch, 2)
+    # sketch = HWC3((255*sketch.permute(1,2,0)).numpy().astype(np.uint8))
+    # sketch = Image.fromarray(sketch)
+    sketch = sketch_dict#测试用的句子，不是草图，是color_map
     # decode image
     guidance_scale = 9
     num_inference_steps = 25
 
     images = model(
         f'{caption}, {prompt_pos}',
-        Image.fromarray(sketch),
+        sketch,
         generator = [torch.Generator(device="cuda").manual_seed(i) for i in range(8)],
         num_images_per_prompt=8,
         guidance_scale=guidance_scale,
@@ -212,8 +219,12 @@ if __name__ == '__main__':
     ntc_sketch.update()#更新模型
 
     # Make savedir
-    save_dir = f'recon_examples/PICS_{args.loss}_ntclam{args_ntc.lmbda}/{args.dataset}_recon'
-    sketch_dir = f'recon_examples/PICS_{args.loss}_ntclam{args_ntc.lmbda}/{args.dataset}_sketch'
+    # save_dir = f'recon_examples/PICS_{args.loss}_ntclam{args_ntc.lmbda}/{args.dataset}_recon'
+    # sketch_dir = f'recon_examples/PICS_{args.loss}_ntclam{args_ntc.lmbda}/{args.dataset}_sketch'
+    #以下是测试用的地址
+    save_dir = f'recon_examples/PICS_{args.loss}_ntclam{args_ntc.lmbda}_testcolor/{args.dataset}_recon'
+    sketch_dir = f'recon_examples/PICS_{args.loss}_ntclam{args_ntc.lmbda}_testcolor/{args.dataset}_sketch'
+    #以上是测试用的地址
     pathlib.Path(save_dir).mkdir(parents=True, exist_ok=True)
     pathlib.Path(sketch_dir).mkdir(parents=True, exist_ok=True)
 
@@ -227,8 +238,12 @@ if __name__ == '__main__':
         
         # Encode and decode
         # caption, sketch, sketch_dict, idx = encode_rcc(model, clip, clip_preprocess, ntc_sketch, im, args.N)
+        # caption, sketch, sketch_dict, idx = encode_rcc(model, clip, clip_preprocess, ntc_sketch, im, args.N, i)
+        # xhat, sketch_recon = recon_rcc(model, ntc_sketch, caption, sketch_dict, idx,  args.N)
+
+        #测试color用的encode和decode
         caption, sketch, sketch_dict, idx = encode_rcc(model, clip, clip_preprocess, ntc_sketch, im, args.N, i)
-        xhat, sketch_recon = recon_rcc(model, ntc_sketch, caption, sketch_dict, idx,  args.N)
+        xhat, sketch_recon = recon_rcc(model, ntc_sketch, caption, sketch, idx,  args.N)
 
         # Save ground-truth image
         im_orig = Image.fromarray(im)
@@ -238,23 +253,24 @@ if __name__ == '__main__':
         xhat.save(f'{save_dir}/{i}_recon.png')
 
         # Save sketch images
-        im_sketch = to_pil_image(sketch[0])
+        # im_sketch = to_pil_image(sketch[0])
+        im_sketch = sketch
         im_sketch.save(f'{sketch_dir}/{i}_sketch.png')
 
-        im_sketch_recon = Image.fromarray(sketch_recon)
-        im_sketch_recon.save(f'{sketch_dir}/{i}_sketch_recon.png')
+        # im_sketch_recon = Image.fromarray(sketch_recon)
+        # im_sketch_recon.save(f'{sketch_dir}/{i}_sketch_recon.png')
 
         # Compute rates
-        bpp_sketch = sum([len(bin(int.from_bytes(s, sys.byteorder))) for s_batch in sketch_dict['strings'] for s in s_batch]) / (im_orig.size[0]*im_orig.size[1])
-        bpp_caption = sys.getsizeof(zlib.compress(caption.encode()))*8 / (im_orig.size[0]*im_orig.size[1])
+        # bpp_sketch = sum([len(bin(int.from_bytes(s, sys.byteorder))) for s_batch in sketch_dict['strings'] for s in s_batch]) / (im_orig.size[0]*im_orig.size[1])
+        # bpp_caption = sys.getsizeof(zlib.compress(caption.encode()))*8 / (im_orig.size[0]*im_orig.size[1])
 
-        compressed = {'caption': caption,
-                      'prior_strings':sketch_dict['strings'][0][0],
-                      'hyper_strings':sketch_dict['strings'][1][0],
-                      'bpp_sketch' : bpp_sketch,
-                      'bpp_caption' : bpp_caption,
-                      'bpp_total' : bpp_sketch + bpp_caption + math.log2(args.N) / (im_orig.size[0]*im_orig.size[1])
-                      }
-        with open(f'{save_dir}/{i}_caption.yaml', 'w') as file:
-            yaml.dump(compressed, file)
+        # compressed = {'caption': caption,
+        #               'prior_strings':sketch_dict['strings'][0][0],
+        #               'hyper_strings':sketch_dict['strings'][1][0],
+        #               'bpp_sketch' : bpp_sketch,
+        #               'bpp_caption' : bpp_caption,
+        #               'bpp_total' : bpp_sketch + bpp_caption + math.log2(args.N) / (im_orig.size[0]*im_orig.size[1])
+        #               }
+        # with open(f'{save_dir}/{i}_caption.yaml', 'w') as file:
+        #     yaml.dump(compressed, file)
             # file.write(caption)
