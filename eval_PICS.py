@@ -30,8 +30,8 @@ def get_loss(args):
     else:
         sys.exit('Not a valid loss')
 
-prompt_pos = 'high quality, high resolution, Leica camera effect, Leica photography'
-prompt_neg = 'disfigured, deformed, low quality, lowres, b&w, blurry, Photoshop, video game, bad art, overexposure, color distortion'
+prompt_pos = 'high quality'
+prompt_neg = 'disfigured, deformed, low quality, lowres, b&w, blurry, Photoshop, video game, bad art'
 
 def encode_rcc(model, clip, preprocess, ntc_sketch, im, N=5, i=0):
     """
@@ -67,12 +67,12 @@ def encode_rcc(model, clip, preprocess, ntc_sketch, im, N=5, i=0):
     # sketch_recon.save(f'recon_examples/PICS_clip_ntclam1.0/CLIC2020_sketch/{i}_sketch_recon_mayutest.png')
 
     # Optionally load saved captions
-    # if i > 0:
-    # with open(f'recon_examples/PICS_clip_ntclam1.0/CLIC2020_recon/{i}_caption.yaml', 'r') as file:
-    #     caption_dict = yaml.safe_load(file)
-    # caption = caption_dict['caption']
-    # else:
-    caption = prompt_inv.optimize_prompt(clip, preprocess, args_clip, 'cuda:0', target_images=[Image.fromarray(im)])#得到最优promt
+    if i < 20:
+        with open(f'recon_examples/PICS_clip_ntclam1.0/CLIC2020_recon/{i}_caption.yaml', 'r') as file:
+            caption_dict = yaml.safe_load(file)
+        caption = caption_dict['caption']
+    else:
+        caption = prompt_inv.optimize_prompt(clip, preprocess, args_clip, 'cuda:0', target_images=[Image.fromarray(im)])#得到最优promt
     
     guidance_scale = 9
     num_inference_steps = 25
@@ -187,8 +187,8 @@ if __name__ == '__main__':
     ntc_sketch.update()#更新模型
 
     # Make savedir
-    save_dir = f'recon_examples/PICS_{args.loss}_ntclam{args_ntc.lmbda}/{args.dataset}_recon'
-    sketch_dir = f'recon_examples/PICS_{args.loss}_ntclam{args_ntc.lmbda}/{args.dataset}_sketch'
+    save_dir = f'recon_examples/PICS_{args.loss}_ntclam{args_ntc.lmbda}_origin/{args.dataset}_recon'
+    sketch_dir = f'recon_examples/PICS_{args.loss}_ntclam{args_ntc.lmbda}_origin/{args.dataset}_sketch'
     pathlib.Path(save_dir).mkdir(parents=True, exist_ok=True)
     pathlib.Path(sketch_dir).mkdir(parents=True, exist_ok=True)
 
