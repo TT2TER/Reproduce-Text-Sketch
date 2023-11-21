@@ -28,11 +28,11 @@ def enhance_image(image, contrast_factor, saturation_factor):
     image = enhancer.enhance(saturation_factor)
     return image
 
-def get_cond_color(cond_image, mask_size=128):
+def get_cond_color(cond_image, mask_size=64):
     #improved form https://github.com/jinxixiang/color_controlnet
     #rectangular palette
     cond_image = to_pil_image(cond_image)
-    cond_image = enhance_image(cond_image, 1.5, 1.2)
+    cond_image = enhance_image(cond_image, 2.0, 1.1)
     H, W = cond_image.size
     cond_image = cond_image.resize((W // mask_size, H // mask_size), Image.Resampling.BICUBIC)
     color = cond_image.resize((H, W), Image.Resampling.NEAREST)
