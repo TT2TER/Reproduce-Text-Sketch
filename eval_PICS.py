@@ -193,6 +193,8 @@ if __name__ == '__main__':
     pathlib.Path(sketch_dir).mkdir(parents=True, exist_ok=True)
 
     for i, x in tqdm.tqdm(enumerate(dm.test_dset)):
+        # if i !=17:
+        #     continue
         # Resize to 512
         x = x[0]
         x_im = (255*x.permute(1,2,0)).numpy().astype(np.uint8)
@@ -202,6 +204,7 @@ if __name__ == '__main__':
         
         # Encode and decode
         # caption, sketch, sketch_dict, idx = encode_rcc(model, clip, clip_preprocess, ntc_sketch, im, args.N)
+        
         caption, sketch, sketch_dict, idx = encode_rcc(model, clip, clip_preprocess, ntc_sketch, im, args.N, i)
         xhat, sketch_recon = recon_rcc(model, ntc_sketch, caption, sketch_dict, idx,  args.N)
 
