@@ -83,6 +83,7 @@ def encode_rcc(model, clip, preprocess, ntc_sketch, im, N=5, i=0):
         color_dict = ntc_sketch.compress(color_map)#TODO:这里应该换一个压缩模型
         #https://interdigitalinc.github.io/CompressAI/zoo.html
         #搞清楚这个仓库里的压缩模型哪来的
+        #看起来好像是自己训练来的
         print(color_dict)
         #TODO:解压缩
     color_recon = color_map
